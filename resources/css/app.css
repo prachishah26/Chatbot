@@ -1,0 +1,312 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * The app ships a single light theme on an off-white ground. Colours are
+ * declared once as semantic tokens, so markup names a role (`bg-panel`,
+ * `text-muted`) rather than a shade and the palette can be retuned here alone.
+ */
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-canvas: #faf9f6;
+    --color-rail: #f1efea;
+    --color-panel: #ffffff;
+    --color-panel-hi: #eeebe4;
+    --color-edge: #e3e0d8;
+    --color-ink: #1c1f23;
+    --color-muted: #5a636e;
+    --color-faint: #8a929c;
+    --color-accent: #0d9488;
+    --color-accent-deep: #0b6f66;
+}
+
+/*
+ * The main column's ground: off-white warming downward, with the faintest
+ * teal settling at the foot of the page.
+ */
+.app-canvas {
+    background:
+        radial-gradient(ellipse 110% 70% at 50% 118%, rgb(13 148 136 / 0.08), transparent 68%),
+        radial-gradient(ellipse 80% 50% at 85% 6%, rgb(13 148 136 / 0.035), transparent 70%),
+        linear-gradient(180deg, #fcfbf9 0%, #f9f8f4 55%, #f4f3ed 100%);
+}
+
+/* Scrollbars that suit the light ground rather than the browser's default. */
+* {
+    scrollbar-color: rgb(0 0 0 / 0.2) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.16);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: rgb(13 148 136 / 0.45);
+}
+
+/* --------------------------------------------------------------------------
+   Rendered assistant replies.
+
+   Scoped to `.md` so the markdown renderer's output is the only thing styled
+   here; user turns stay plain text inside their bubble.
+   -------------------------------------------------------------------------- */
+
+.md {
+    font-size: 15.5px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.md > *:first-child {
+    margin-top: 0;
+}
+
+.md > *:last-child {
+    margin-bottom: 0;
+}
+
+.md p {
+    margin: 0.7rem 0;
+}
+
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+    margin: 1.4rem 0 0.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: #11151a;
+}
+
+.md h1 { font-size: 1.45rem; }
+.md h2 { font-size: 1.25rem; }
+.md h3 { font-size: 1.1rem; }
+.md h4,
+.md h5,
+.md h6 { font-size: 1rem; }
+
+.md ul,
+.md ol {
+    margin: 0.7rem 0;
+    padding-left: 1.4rem;
+}
+
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md ul ul { list-style: circle; }
+
+.md li {
+    margin: 0.35rem 0;
+    padding-left: 0.25rem;
+}
+
+.md li::marker {
+    color: rgb(13 148 136 / 0.75);
+}
+
+.md li > ul,
+.md li > ol {
+    margin: 0.35rem 0;
+}
+
+.md strong {
+    font-weight: 600;
+    color: #11151a;
+}
+
+.md em { font-style: italic; }
+.md del { text-decoration: line-through; }
+
+.md a {
+    color: #0b6f66;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: rgb(11 111 102 / 0.4);
+}
+
+.md a:hover {
+    text-decoration-color: currentColor;
+}
+
+.md hr {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid rgb(0 0 0 / 0.1);
+}
+
+.md blockquote {
+    margin: 1rem 0;
+    padding: 0.35rem 0 0.35rem 1rem;
+    border-left: 2px solid rgb(13 148 136 / 0.6);
+    border-radius: 0 0.4rem 0.4rem 0;
+    background: rgb(13 148 136 / 0.05);
+    color: #39424d;
+}
+
+/* Inline code, excluding the contents of a fenced block. */
+.md :not(pre) > code {
+    padding: 0.15em 0.4em;
+    border-radius: 0.35rem;
+    border: 1px solid rgb(13 148 136 / 0.18);
+    background: rgb(13 148 136 / 0.08);
+    color: #0b6f66;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Fenced code block with its language bar. */
+.md-code {
+    margin: 1rem 0;
+    overflow: hidden;
+    border: 1px solid #e3e0d8;
+    border-radius: 0.875rem;
+    /* Near-white so the block lifts off the warm canvas rather than sinking into it. */
+    background: #fdfdfc;
+}
+
+.md-code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.6rem 0.45rem 1rem;
+    border-bottom: 1px solid #eceae3;
+    background: rgb(13 148 136 / 0.05);
+    color: #5a636e;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.md-code-head button {
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.4rem;
+    color: #5a636e;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.md-code-head button:hover {
+    background: rgb(13 148 136 / 0.14);
+    color: #0b6f66;
+}
+
+.md-code pre {
+    margin: 0;
+    padding: 0.95rem 1rem;
+    overflow-x: auto;
+}
+
+.md-code code {
+    color: #1c1f23;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Tables scroll on their own so the reply never widens the page. */
+.md-table {
+    margin: 1rem 0;
+    overflow-x: auto;
+    border: 1px solid #e3e0d8;
+    border-radius: 0.75rem;
+}
+
+.md-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.md-table th,
+.md-table td {
+    padding: 0.55rem 0.85rem;
+    border-bottom: 1px solid #e9e6de;
+    text-align: left;
+}
+
+.md-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.md-table th {
+    background: rgb(13 148 136 / 0.07);
+    color: #11151a;
+    font-weight: 600;
+}
+
+/* Messages ease in rather than snapping into the thread. */
+.chat-enter {
+    animation: chat-fade-in 0.22s ease-out both;
+}
+
+@keyframes chat-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Typing indicator shown while the assistant is generating a reply. */
+.chat-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    background-color: currentColor;
+    opacity: 0.45;
+    animation: chat-bounce 1.2s infinite ease-in-out;
+}
+
+.chat-dot:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.chat-dot:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes chat-bounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.45;
+    }
+    30% {
+        transform: translateY(-0.25rem);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chat-dot,
+    .chat-enter {
+        animation: none;
+    }
+
+    [data-sidebar] {
+        transition: none;
+    }
+}
