@@ -1,58 +1,107 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Samvaad
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Samvaad is a chat app built with Laravel 13, Blade and Tailwind CSS. It talks to Google's Gemini API for replies.
 
-## About Laravel
+Each visitor gets their own conversations, and the recent messages are sent back to the model with every new question. That's what lets follow-ups work: ask "What is RAG?", then "What are its main components?", and the second question is understood as part of the same thread. You don't need an account to use it. Guests get threads tied to their session, and if you sign up later, those threads come with you so your history is there on any browser.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What it does
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Multi-turn chat, with a system prompt and history length you can configure
+- A sidebar of threads you can create, switch between and delete. Each one is named after its first message
+- A model picker. Only the models listed in config can be chosen, and your pick is remembered for the session
+- Falls back through a list of Gemini models. If one runs out of free-tier quota it's set aside for a while and the next one answers instead, so the bot keeps working
+- Retries when a request fails for a temporary reason, and shows a normal error message instead of a stack trace if Gemini is down
+- Optional sign-up and login, with rate limits on the chat, UI and auth routes
+- Replies render Markdown and have a copy button
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Before you start
 
-## Learning Laravel
+You'll need:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.3 or newer (this was built on 8.5) with the `sqlite3` and `pdo_sqlite` extensions
+- Composer 2
+- Node.js 20 or newer, and npm
+- A Gemini API key. They're free from [Google AI Studio](https://aistudio.google.com/apikey)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup
 
 ```bash
-composer require laravel/boost --dev
+git clone <repository-url> ai-chatbot
+cd ai-chatbot
 
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+
+touch database/database.sqlite
+php artisan migrate
+
+npm install
+npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Now open `.env` and paste in your key:
 
-## Contributing
+```env
+GEMINI_API_KEY=your-key-here
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+That's the only value you have to fill in. Everything else already has a sensible default, but without a key the app can't answer anything.
 
-## Code of Conduct
+## Running it
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer run dev
+```
 
-## Security Vulnerabilities
+That one command runs the PHP server, the queue worker, log tailing and Vite together. Then open http://localhost:8000.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+If you'd rather not run the asset watcher, run `npm run build` once and use `php artisan serve` instead.
 
-## License
+## Settings
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The chat settings live in `config/chatbot.php` and all of them read from environment variables:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | — | **Required.** Your Gemini key. It's only ever read from the environment, never committed |
+| `GEMINI_MODELS` | `gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite` | The fallback order, best model first. This list is also what the model picker shows |
+| `GEMINI_MODEL_COOLDOWN_MINUTES` | `30` | How long to skip a model after it runs out of quota |
+| `GEMINI_THINKING_LEVEL` | `low` | How much Gemini 3.x thinks before replying. Higher is slower |
+| `GEMINI_TIMEOUT` | `60` | Request timeout, in seconds |
+| `GEMINI_MAX_ATTEMPTS` | `3` | How many times to retry a model before moving to the next one |
+| `CHAT_SYSTEM_PROMPT` | friendly, concise assistant | Added to the start of every conversation |
+| `CHAT_HISTORY_LIMIT` | `20` | How many past messages get sent along as context |
+| `CHAT_MAX_MESSAGE_LENGTH` | `4000` | Longest message a user can send, in characters |
+
+Want to use something other than Gemini? Write a class that implements `App\Chat\Contracts\ChatProvider`, bind it in `AppServiceProvider`, and point `CHAT_PROVIDER` at it. Nothing else in the app calls Gemini directly, so that's the only place you have to touch.
+
+## Tests
+
+```bash
+composer test                       # everything
+php artisan test --compact          # same thing, shorter output
+php artisan test --filter=ChatTest  # just one file
+```
+
+The feature tests cover the chat routes, auth, and handing a guest's threads over at sign-up. The unit tests cover the Gemini provider, the model fallback pool, prompt suggestions and how a thread is built for display. None of them make real network calls.
+
+## Formatting
+
+```bash
+vendor/bin/pint --dirty
+```
+
+## Where things live
+
+```
+app/Chat/                  Chat logic: conversation store, model preference, small helper types
+app/Chat/Contracts/        The ChatProvider interface, if you want to swap out Gemini
+app/Chat/Providers/        Gemini client, its config object, and the model fallback pool
+app/Http/Controllers/      Chat and auth controllers
+app/Http/Requests/         Validation for incoming requests
+config/chatbot.php         Provider, prompt, history and starter-prompt settings
+resources/views/chat/      The Blade chat UI
+resources/js/chat/         Front-end pieces (api, markdown, sidebar, menus)
+tests/                     PHPUnit feature and unit tests
+```
