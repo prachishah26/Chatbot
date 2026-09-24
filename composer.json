@@ -43,6 +43,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
+            "@php artisan chat:warm",
             "@php artisan dev"
         ],
         "test": [

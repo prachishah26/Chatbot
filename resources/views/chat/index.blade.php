@@ -14,9 +14,7 @@
                 <x-icon-panel />
             </button>
             <div class="ml-auto flex items-center gap-2">
-                @include('chat.partials.model-picker', [
-                    'currentLabel' => collect($modelOptions)->firstWhere('id', $currentModel)?->label ?? $currentModel,
-                ])
+                @include('chat.partials.model-picker')
 
                 <form method="POST" action="{{ route('chat.conversations.store') }}" class="md:hidden">
                     @csrf

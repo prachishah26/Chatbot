@@ -141,8 +141,8 @@ final class ChatController extends Controller
                 (array) config('chatbot.suggestions', []),
                 (int) config('chatbot.suggestion_count', 3),
             ),
-            'modelOptions' => $this->models->options(),
-            'currentModel' => $this->models->current($request->session()),
+            'modelGroups' => $this->models->groupedOptions(),
+            'currentChoice' => $this->models->currentChoice($request->session()),
         ]);
     }
 

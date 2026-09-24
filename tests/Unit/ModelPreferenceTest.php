@@ -21,7 +21,7 @@ final class ModelPreferenceTest extends TestCase
     #[Test]
     public function it_falls_back_to_the_first_configured_model(): void
     {
-        $this->assertSame('gemini-3.6-flash', $this->preference()->current($this->newSession()));
+        $this->assertSame('ollama/llama3.2', $this->preference()->current($this->newSession()));
     }
 
     #[Test]
@@ -30,8 +30,10 @@ final class ModelPreferenceTest extends TestCase
         $session = $this->newSession();
         $preference = $this->preference();
 
-        $this->assertTrue($preference->choose($session, 'gemini-3.1-flash-lite'));
-        $this->assertSame('gemini-3.1-flash-lite', $preference->current($session));
+        $this->assertTrue($preference->choose($session, 'gemini/gemini-3.1-flash-lite'));
+        $this->assertSame('gemini/gemini-3.1-flash-lite', $preference->current($session));
+        $this->assertSame('gemini', $preference->currentChoice($session)->provider);
+        $this->assertSame('gemini-3.1-flash-lite', $preference->currentChoice($session)->model);
     }
 
     #[Test]
@@ -40,8 +42,9 @@ final class ModelPreferenceTest extends TestCase
         $session = $this->newSession();
         $preference = $this->preference();
 
-        $this->assertFalse($preference->choose($session, 'gemini-3.8-flash'));
-        $this->assertSame('gemini-3.6-flash', $preference->current($session));
+        $this->assertFalse($preference->choose($session, 'gemini/gemini-3.8-flash'));
+        $this->assertFalse($preference->choose($session, 'gemini-3.6-flash'), 'A bare model without its provider is refused.');
+        $this->assertSame('ollama/llama3.2', $preference->current($session));
     }
 
     #[Test]
@@ -50,7 +53,7 @@ final class ModelPreferenceTest extends TestCase
         $session = $this->newSession();
         $session->put('chat.model', 'a-retired-model');
 
-        $this->assertSame('gemini-3.6-flash', $this->preference()->current($session));
+        $this->assertSame('ollama/llama3.2', $this->preference()->current($session));
     }
 
     #[Test]
@@ -62,9 +65,28 @@ final class ModelPreferenceTest extends TestCase
         );
 
         $this->assertSame(
-            ['Gemini 3.6 Flash', 'Gemini 3.5 Flash Lite', 'Gemini 3.1 Flash Lite'],
+            ['Llama3.2', 'Qwen3 8b', 'Gemini 3.6 Flash', 'Gemini 3.5 Flash Lite', 'Gemini 3.1 Flash Lite'],
             $labels,
         );
+    }
+
+    #[Test]
+    public function it_groups_models_by_provider(): void
+    {
+        $groups = $this->preference()->groupedOptions();
+
+        $this->assertSame(['ollama', 'gemini'], array_keys($groups));
+        $this->assertSame('Ollama', $groups['ollama'][0]->providerLabel());
+        $this->assertTrue($groups['ollama'][0]->isLocal());
+        $this->assertFalse($groups['gemini'][0]->isLocal());
+    }
+
+    #[Test]
+    public function it_splits_an_id_on_the_first_separator_only(): void
+    {
+        $this->assertSame(['ollama', 'hf.co/org/model:q4'], ModelChoice::parse('ollama/hf.co/org/model:q4'));
+        $this->assertNull(ModelChoice::parse('llama3.2'));
+        $this->assertNull(ModelChoice::parse('/llama3.2'));
     }
 
     #[Test]
@@ -104,7 +126,10 @@ final class ModelPreferenceTest extends TestCase
 
     private function preference(): ModelPreference
     {
-        return new ModelPreference(self::MODELS);
+        return new ModelPreference([
+            ...ModelChoice::listFor('ollama', ['llama3.2', 'qwen3:8b']),
+            ...ModelChoice::listFor('gemini', self::MODELS),
+        ]);
     }
 
     private function pool(): ModelPool

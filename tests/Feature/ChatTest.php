@@ -11,6 +11,8 @@ use App\Chat\Support\Role;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -274,61 +276,119 @@ final class ChatTest extends TestCase
     }
 
     #[Test]
-    public function it_offers_the_configured_models_in_the_picker(): void
+    public function it_offers_local_and_cloud_models_in_the_picker(): void
     {
-        config(['chatbot.providers.gemini.models' => 'gemini-3.6-flash,gemini-3.5-flash-lite']);
+        $this->configureProviders();
 
         $this->get(route('chat.index'))
             ->assertOk()
-            ->assertSee('Gemini 3.6 Flash')
-            ->assertSee('Gemini 3.5 Flash Lite');
+            ->assertSeeInOrder(['Ollama', 'Local', 'Llama3.2', 'Qwen3 8b', 'Gemini', 'Cloud', 'Gemini 3.6 Flash', 'Gemini 3.5 Flash Lite'])
+            ->assertSee('Powered by Ollama')
+            ->assertSee('Runs locally on this machine with Ollama.');
+    }
+
+    #[Test]
+    public function it_hides_gemini_until_an_api_key_is_set(): void
+    {
+        $this->configureProviders(geminiKey: null);
+
+        $this->get(route('chat.index'))
+            ->assertOk()
+            ->assertSee('Llama3.2')
+            ->assertDontSee('Gemini 3.6 Flash');
+
+        $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.6-flash'])
+            ->assertSessionHasErrors('model');
+    }
+
+    #[Test]
+    public function it_shows_the_provider_of_the_chosen_model(): void
+    {
+        $this->configureProviders();
+
+        $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.5-flash-lite'])
+            ->assertRedirect();
+
+        $this->get(route('chat.index'))
+            ->assertOk()
+            ->assertSee('Powered by Gemini')
+            ->assertSee("Sent to Gemini's API.", false);
     }
 
     #[Test]
     public function it_sends_the_chosen_model_to_the_provider(): void
     {
-        config(['chatbot.providers.gemini.models' => 'gemini-3.6-flash,gemini-3.5-flash-lite']);
+        $this->configureProviders();
+        $this->echoChosenModel();
 
-        $this->app->instance(ChatProvider::class, new class implements ChatProvider
-        {
-            public function reply(string $message, array $history = [], ?string $model = null): string
-            {
-                return 'answered by '.($model ?? 'default');
-            }
-        });
-
-        $this->post(route('chat.model.store'), ['model' => 'gemini-3.5-flash-lite'])
+        $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.5-flash-lite'])
             ->assertRedirect();
 
         $this->postJson(route('chat.store'), ['message' => 'Hi'])
             ->assertOk()
-            ->assertJsonPath('data.assistant.content', 'answered by gemini-3.5-flash-lite');
+            ->assertJsonPath('data.assistant.content', 'answered by gemini/gemini-3.5-flash-lite');
     }
 
     #[Test]
-    public function it_defaults_to_the_first_configured_model(): void
+    public function it_defaults_to_the_first_model_of_the_default_provider(): void
     {
-        config(['chatbot.providers.gemini.models' => 'gemini-3.6-flash,gemini-3.5-flash-lite']);
-
-        $this->app->instance(ChatProvider::class, new class implements ChatProvider
-        {
-            public function reply(string $message, array $history = [], ?string $model = null): string
-            {
-                return 'answered by '.($model ?? 'default');
-            }
-        });
+        $this->configureProviders();
+        $this->echoChosenModel();
 
         $this->postJson(route('chat.store'), ['message' => 'Hi'])
             ->assertOk()
-            ->assertJsonPath('data.assistant.content', 'answered by gemini-3.6-flash');
+            ->assertJsonPath('data.assistant.content', 'answered by ollama/llama3.2');
+    }
+
+    #[Test]
+    public function it_routes_a_gemini_choice_to_the_gemini_api(): void
+    {
+        $this->configureProviders();
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'from gemini']]]]],
+            ]),
+            'localhost:11434/*' => Http::response(['message' => ['role' => 'assistant', 'content' => 'from ollama']]),
+        ]);
+
+        $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.5-flash-lite']);
+
+        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+            ->assertOk()
+            ->assertJsonPath('data.assistant.content', 'from gemini');
+
+        Http::assertSent(static fn (Request $request): bool => str_contains($request->url(), 'gemini-3.5-flash-lite:generateContent'));
+        Http::assertNotSent(static fn (Request $request): bool => str_contains($request->url(), 'localhost:11434'));
+    }
+
+    #[Test]
+    public function it_routes_an_ollama_choice_to_the_local_server(): void
+    {
+        $this->configureProviders();
+
+        Http::fake([
+            'localhost:11434/*' => Http::response(['message' => ['role' => 'assistant', 'content' => 'from ollama']]),
+            'generativelanguage.googleapis.com/*' => Http::response([], 500),
+        ]);
+
+        $this->post(route('chat.model.store'), ['model' => 'ollama/qwen3:8b']);
+
+        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+            ->assertOk()
+            ->assertJsonPath('data.assistant.content', 'from ollama');
+
+        Http::assertSent(static fn (Request $request): bool => $request->url() === 'http://localhost:11434/api/chat'
+            && $request->data()['model'] === 'qwen3:8b');
+        Http::assertNotSent(static fn (Request $request): bool => str_contains($request->url(), 'googleapis'));
     }
 
     #[Test]
     public function it_rejects_a_model_that_is_not_configured(): void
     {
-        config(['chatbot.providers.gemini.models' => 'gemini-3.6-flash']);
+        $this->configureProviders();
 
-        $this->post(route('chat.model.store'), ['model' => 'gemini-3.8-flash'])
+        $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.8-flash'])
             ->assertSessionHasErrors('model');
 
         $this->assertNull(session('chat.model'), 'An unlisted model is never stored.');
@@ -390,6 +450,31 @@ final class ChatTest extends TestCase
             public function reply(string $message, array $history = [], ?string $model = null): string
             {
                 return $this->reply;
+            }
+        });
+    }
+
+    private function configureProviders(?string $geminiKey = 'test-key'): void
+    {
+        config([
+            'chatbot.provider' => 'ollama',
+            'chatbot.available_providers' => 'ollama,gemini',
+            'chatbot.providers.ollama.base_url' => 'http://localhost:11434',
+            'chatbot.providers.ollama.models' => 'llama3.2,qwen3:8b',
+            'chatbot.providers.ollama.max_attempts' => 1,
+            'chatbot.providers.gemini.key' => $geminiKey,
+            'chatbot.providers.gemini.models' => 'gemini-3.6-flash,gemini-3.5-flash-lite',
+            'chatbot.providers.gemini.max_attempts' => 1,
+        ]);
+    }
+
+    private function echoChosenModel(): void
+    {
+        $this->app->instance(ChatProvider::class, new class implements ChatProvider
+        {
+            public function reply(string $message, array $history = [], ?string $model = null): string
+            {
+                return 'answered by '.($model ?? 'default');
             }
         });
     }

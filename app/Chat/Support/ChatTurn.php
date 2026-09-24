@@ -34,4 +34,15 @@ final readonly class ChatTurn
             'parts' => [['text' => $this->text]],
         ];
     }
+
+    /**
+     * @return array{role: string, content: string}
+     */
+    public function toOllamaMessage(): array
+    {
+        return [
+            'role' => $this->role->value,
+            'content' => $this->text,
+        ];
+    }
 }

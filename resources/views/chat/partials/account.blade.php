@@ -34,7 +34,7 @@
     <p class="mt-3 px-1 text-[11px] text-faint">
         <span class="inline-flex items-center gap-1.5">
             <span class="size-1.5 rounded-full bg-accent"></span>
-            Powered by Gemini
+            Powered by {{ $currentChoice->providerLabel() }}
         </span>
     </p>
 </div>

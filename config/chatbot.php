@@ -16,7 +16,13 @@ return [
     |
     */
 
-    'provider' => env('CHAT_PROVIDER', 'gemini'),
+    'provider' => env('CHAT_PROVIDER', 'ollama'),
+
+    /*
+     | Providers visitors may switch between in the model picker. Gemini only
+     | appears once GEMINI_API_KEY is set. Comma-separated in the environment.
+     */
+    'available_providers' => env('CHAT_PROVIDERS', 'ollama,gemini'),
 
     /*
     |--------------------------------------------------------------------------
@@ -75,6 +81,26 @@ return [
     */
 
     'providers' => [
+
+        /*
+         | A self-hosted, open-source model server (https://ollama.com). Nothing
+         | leaves the machine and no API key is needed. Pull each model first,
+         | e.g. `ollama pull llama3.2`. The first model is the default.
+         */
+        'ollama' => [
+            'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
+            'models' => env('OLLAMA_MODELS', 'llama3.2'),
+            // Local generation on a CPU is slow, so wait longer than for a hosted API.
+            'timeout' => (int) env('OLLAMA_TIMEOUT', 120),
+            'temperature' => (float) env('OLLAMA_TEMPERATURE', 0.7),
+            'max_output_tokens' => (int) env('OLLAMA_MAX_OUTPUT_TOKENS', 1024),
+            // How long the model stays loaded in memory after a reply, e.g. "5m".
+            'keep_alive' => env('OLLAMA_KEEP_ALIVE', '10m'),
+            // Reasoning models (qwen3, deepseek-r1) only; leave blank for others.
+            'think' => env('OLLAMA_THINK'),
+            'max_attempts' => (int) env('OLLAMA_MAX_ATTEMPTS', 2),
+            'retry_delay_ms' => (int) env('OLLAMA_RETRY_DELAY_MS', 500),
+        ],
 
         'gemini' => [
             'key' => env('GEMINI_API_KEY'),

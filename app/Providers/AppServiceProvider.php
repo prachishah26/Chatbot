@@ -10,6 +10,11 @@ use App\Chat\ModelPreference;
 use App\Chat\Providers\GeminiChatProvider;
 use App\Chat\Providers\GeminiConfig;
 use App\Chat\Providers\ModelPool;
+use App\Chat\Providers\OllamaChatProvider;
+use App\Chat\Providers\OllamaConfig;
+use App\Chat\Providers\ProviderRouter;
+use App\Chat\Support\ModelChoice;
+use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -24,14 +29,10 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(ChatProvider::class, function (): ChatProvider {
-            $name = (string) config('chatbot.provider', 'gemini');
-
-            return match ($name) {
-                'gemini' => $this->gemini(),
-                default => throw new RuntimeException("Unsupported chat provider [{$name}]."),
-            };
-        });
+        $this->app->singleton(ChatProvider::class, fn (): ChatProvider => new ProviderRouter(
+            $this->providerFactories(),
+            $this->defaultProvider(),
+        ));
 
         $this->app->singleton(
             ConversationStore::class,
@@ -39,8 +40,92 @@ final class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(ModelPreference::class, fn (): ModelPreference => new ModelPreference(
-            GeminiConfig::fromArray((array) config('chatbot.providers.gemini', []))->models,
+            array_merge(...array_map(
+                fn (string $name): array => ModelChoice::listFor($name, $this->modelsFor($name)),
+                $this->availableProviders(),
+            )),
         ));
+    }
+
+    private function defaultProvider(): string
+    {
+        return (string) config('chatbot.provider', 'ollama');
+    }
+
+    /**
+     * Providers the visitor may switch between, the default first.
+     *
+     * A hosted provider without credentials is left out rather than offered
+     * as a choice that can only fail.
+     *
+     * @return list<string>
+     */
+    private function availableProviders(): array
+    {
+        $listed = config('chatbot.available_providers', 'ollama,gemini');
+        $names = array_map('trim', is_array($listed) ? $listed : explode(',', (string) $listed));
+
+        $usable = array_filter($names, fn (string $name): bool => match ($name) {
+            'ollama' => true,
+            'gemini' => filled(config('chatbot.providers.gemini.key')),
+            default => false,
+        });
+
+        return array_values(array_unique([$this->defaultProvider(), ...$usable]));
+    }
+
+    /**
+     * @return array<string, Closure(): ChatProvider>
+     */
+    private function providerFactories(): array
+    {
+        $names = $this->availableProviders();
+
+        return array_combine($names, array_map(
+            fn (string $name): Closure => fn (): ChatProvider => $this->makeProvider($name),
+            $names,
+        ));
+    }
+
+    private function makeProvider(string $name): ChatProvider
+    {
+        return match ($name) {
+            'ollama' => $this->ollama(),
+            'gemini' => $this->gemini(),
+            default => throw new RuntimeException("Unsupported chat provider [{$name}]."),
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function modelsFor(string $name): array
+    {
+        $settings = (array) config("chatbot.providers.{$name}", []);
+
+        return match ($name) {
+            'ollama' => OllamaConfig::fromArray($settings)->models,
+            'gemini' => GeminiConfig::fromArray($settings)->models,
+            default => throw new RuntimeException("Unsupported chat provider [{$name}]."),
+        };
+    }
+
+    /**
+     * Builds the self-hosted Ollama provider.
+     *
+     * Local models have no quota to exhaust, so the pool never parks one; it
+     * only puts the visitor's chosen model first.
+     */
+    private function ollama(): OllamaChatProvider
+    {
+        $config = OllamaConfig::fromArray((array) config('chatbot.providers.ollama', []));
+
+        return new OllamaChatProvider(
+            $this->app->make(HttpFactory::class),
+            $config,
+            new ModelPool($this->app->make(Cache::class), $config->models, 0),
+            (string) config('chatbot.system_prompt', ''),
+        );
     }
 
     /**
