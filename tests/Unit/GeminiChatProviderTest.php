@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Chat\Data\ChatTurn;
 use App\Chat\Exceptions\ChatProviderException;
-use App\Chat\Providers\GeminiChatProvider;
-use App\Chat\Providers\GeminiConfig;
-use App\Chat\Providers\ModelPool;
-use App\Chat\Support\ChatTurn;
+use App\Chat\Llm\Gemini\GeminiChatProvider;
+use App\Chat\Llm\Gemini\GeminiConfig;
+use App\Chat\Llm\ModelPool;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\ConnectionException;

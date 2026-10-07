@@ -76,4 +76,14 @@ final class WarmChatModelCommandTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    #[Test]
+    public function a_hosted_only_install_skips_warming_even_with_blank_ollama_settings(): void
+    {
+        config(['chatbot.provider' => 'gemini', 'chatbot.providers.ollama.base_url' => '']);
+
+        $this->artisan('chat:warm')
+            ->expectsOutputToContain('Nothing to warm')
+            ->assertSuccessful();
+    }
 }

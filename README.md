@@ -117,7 +117,7 @@ The chat settings live in `config/chatbot.php` and all of them read from environ
 
 ### Adding another provider
 
-Write a class that implements `App\Chat\Contracts\ChatProvider`, add a `match` arm for it in `AppServiceProvider` (in `makeProvider()` and `modelsFor()`), give it a section under `providers` in `config/chatbot.php`, and add its name to `CHAT_PROVIDERS`. Picker choices are stored as `provider/model`, and `ProviderRouter` sends each message to the matching provider, so nothing else needs to change.
+Put the new client in `app/Chat/Llm/<Name>/`, implementing `App\Chat\Contracts\ChatProvider` and using the shared `LlmHttpClient` (HTTP + retries) and `ModelPool::firstAnswer()` (model fallback). Give it a section under `providers` in `config/chatbot.php`, add one arm for it in `ChatServiceProvider::definition()`, and add its name to `CHAT_PROVIDERS`. Picker choices are stored as `provider/model`, and `ProviderRouter` sends each message to the matching provider, so nothing else needs to change. The full checklist is in `.claude/skills/add-chat-provider/SKILL.md`.
 
 ## Tests
 
@@ -138,15 +138,23 @@ vendor/bin/pint --dirty
 ## Where things live
 
 ```
-app/Chat/                  Chat logic: conversation store, model preference, small helper types
 app/Chat/Contracts/        The ChatProvider interface every provider implements
-app/Chat/Providers/        Ollama and Gemini clients, their config objects, the provider router,
-                           the model warmer and the Gemini fallback pool
-app/Console/Commands/      The chat:warm command
+app/Chat/Conversations/    Conversation store (owner-scoped persistence) and guest-thread hand-over
+app/Chat/Data/             Immutable value objects: ChatTurn, Role, ChatOwner
+app/Chat/Llm/              Shared LLM plumbing: provider router, model pool/choice/preference,
+                           JSON endpoint with retries, config helpers
+app/Chat/Llm/Ollama/       Ollama client, its config and the model warmer
+app/Chat/Llm/Gemini/       Gemini client and its config
+app/Chat/Presentation/     View helpers: sidebar timeline, starter prompts
 app/Http/Controllers/      Chat and auth controllers
 app/Http/Requests/         Validation for incoming requests
+app/Http/Responses/        The {success, data, error} JSON envelope
+app/Providers/             ChatServiceProvider (chat wiring) and AppServiceProvider (rate limits)
+app/Console/Commands/      The chat:warm command
 config/chatbot.php         Provider, prompt, history and starter-prompt settings
 resources/views/chat/      The Blade chat UI
 resources/js/chat/         Front-end pieces (api, markdown, sidebar, menus)
 tests/                     PHPUnit feature and unit tests
 ```
+
+The detailed map, with what may and may not go in each folder, is `.ai/rules/structure.md`.

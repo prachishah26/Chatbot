@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Chat\Contracts;
 
+use App\Chat\Data\ChatTurn;
 use App\Chat\Exceptions\ChatProviderException;
-use App\Chat\Support\ChatTurn;
 
 /**
  * A backend capable of producing an assistant reply.

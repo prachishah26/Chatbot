@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Chat\ConversationStore;
+use App\Chat\Conversations\GuestConversationService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
@@ -22,7 +22,7 @@ final class AuthenticatedSessionController extends Controller
      */
     private const FAILED = 'Those credentials do not match our records.';
 
-    public function __construct(private readonly ConversationStore $store) {}
+    public function __construct(private readonly GuestConversationService $guestConversations) {}
 
     public function create(): View
     {
@@ -41,7 +41,7 @@ final class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         if ($user instanceof User) {
-            $this->store->claimGuestThreads($request->session(), $user);
+            $this->guestConversations->claim($request->session(), $user);
         }
 
         return redirect()->intended(route('chat.index'));

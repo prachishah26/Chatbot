@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Chat\Support\PromptSuggestions;
+use App\Chat\Presentation\PromptSuggestions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

@@ -5,6 +5,9 @@ declare(strict_types=1);
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ModelSelectionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ChatController::class, 'index'])->name('chat.index');
@@ -13,14 +16,14 @@ Route::get('/c/{conversation}', [ChatController::class, 'show'])
     ->name('chat.show');
 
 // Sending a message calls the AI provider, so it carries the tighter limit.
-Route::post('/chat/messages', [ChatController::class, 'store'])
+Route::post('/chat/messages', [MessageController::class, 'store'])
     ->middleware('throttle:chat')
-    ->name('chat.store');
+    ->name('chat.messages.store');
 
 Route::middleware('throttle:chat-ui')->group(function (): void {
-    Route::post('/chat/conversations', [ChatController::class, 'startNew'])->name('chat.conversations.store');
-    Route::post('/chat/model', [ChatController::class, 'chooseModel'])->name('chat.model.store');
-    Route::delete('/chat/conversations/{conversation}', [ChatController::class, 'destroy'])
+    Route::post('/chat/conversations', [ConversationController::class, 'store'])->name('chat.conversations.store');
+    Route::post('/chat/model', [ModelSelectionController::class, 'store'])->name('chat.model.store');
+    Route::delete('/chat/conversations/{conversation}', [ConversationController::class, 'destroy'])
         ->whereUlid('conversation')
         ->name('chat.conversations.destroy');
 });
@@ -40,5 +43,5 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
-    ->middleware('auth')
+    ->middleware(['auth', 'throttle:chat-ui'])
     ->name('logout');

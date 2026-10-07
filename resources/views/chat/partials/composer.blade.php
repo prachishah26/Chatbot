@@ -1,5 +1,5 @@
 {{-- The message box. Shared by the empty state and the live thread. --}}
-<form data-chat-form action="{{ route('chat.store') }}" method="POST" novalidate
+<form data-chat-form action="{{ route('chat.messages.store') }}" method="POST" novalidate
     class="mx-auto w-full max-w-3xl px-4">
 
     <div class="flex items-end gap-2 rounded-2xl border border-edge bg-panel p-2 shadow-[0_6px_24px_-14px_rgba(0,0,0,0.45)] transition focus-within:border-accent/50 focus-within:shadow-[0_0_0_1px_rgba(13,148,136,0.25),0_6px_24px_-14px_rgba(0,0,0,0.45)]">

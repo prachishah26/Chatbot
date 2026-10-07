@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Chat\Contracts\ChatProvider;
-use App\Chat\Providers\ProviderRouter;
+use App\Chat\Llm\ProviderRouter;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
