@@ -1,3 +1,19 @@
+# AI Chatbot — read this first
+
+Chatbot on Laravel 13 (PHP 8.5), Blade + vanilla JS + Tailwind 4, with Ollama (local) and Gemini (hosted) behind one `ChatProvider` contract.
+
+**Before planning or editing anything:**
+
+1. Read `.ai/rules/structure.md`, the project map. It says where every kind of code belongs and what must not be recreated. If a change doesn't fit the map, ask.
+2. Open `.ai/rules/index.md` and read every rule file whose globs match the paths you will touch.
+3. Composer is **not** on PATH. Always run `php ~/composer2.phar <cmd>` (e.g. `php ~/composer2.phar run dev`). Details: `.ai/rules/commands.md`.
+
+**Project skills** (`.claude/skills/`):
+- `add-chat-provider`: the only supported way to add an LLM backend.
+- `finish-change`: run before saying any change is done. Pint, tests, and the structure and security checks.
+
+Keep this header outside the `<laravel-boost-guidelines>` block below; Boost regenerates only what is inside it.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

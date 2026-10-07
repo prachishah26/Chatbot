@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Chat\Support\ChatOwner;
+use App\Chat\Data\ChatOwner;
 use Database\Factories\ConversationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,7 +31,7 @@ final class Conversation extends Model
 
     /**
      * Ownership is never taken from request data; it is stamped by
-     * ConversationStore from a server-derived ChatOwner.
+     * ConversationService from a server-derived ChatOwner.
      *
      * @var list<string>
      */
@@ -76,6 +76,18 @@ final class Conversation extends Model
     public function scopeOwnedBy(Builder $query, ChatOwner $owner): Builder
     {
         return $owner->constrain($query);
+    }
+
+    /**
+     * Threads worth listing in the sidebar, most recently used first.
+     * Threads with no messages are drafts and stay hidden until they are used.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeForSidebar(Builder $query): Builder
+    {
+        return $query->whereHas('messages')->latest('updated_at')->latest('id');
     }
 
     /**

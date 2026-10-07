@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Chat\Exceptions\ChatProviderException;
-use App\Chat\Providers\OllamaConfig;
-use App\Chat\Providers\OllamaWarmer;
+use App\Chat\Llm\Ollama\OllamaChatProvider;
+use App\Chat\Llm\Ollama\OllamaWarmer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Http\Client\Factory as HttpFactory;
 
 /**
  * Preloads the local chat model so the first message is not slowed by loading.
@@ -22,15 +21,16 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 #[Description('Load the default Ollama chat model into memory ahead of the first message')]
 final class WarmChatModelCommand extends Command
 {
-    public function handle(HttpFactory $http): int
+    public function handle(): int
     {
-        if (config('chatbot.provider') !== 'ollama') {
+        if (config('chatbot.provider') !== OllamaChatProvider::NAME) {
             $this->components->info('Nothing to warm: the active chat provider is hosted.');
 
             return self::SUCCESS;
         }
 
-        $warmer = new OllamaWarmer($http, OllamaConfig::fromArray((array) config('chatbot.providers.ollama', [])));
+        // Resolved only now, so a hosted-only install never parses the Ollama settings.
+        $warmer = $this->laravel->make(OllamaWarmer::class);
         $model = $warmer->defaultModel();
 
         try {

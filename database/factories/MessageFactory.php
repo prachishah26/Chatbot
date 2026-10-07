@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Chat\Support\Role;
+use App\Chat\Data\Role;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Database\Eloquent\Factories\Factory;

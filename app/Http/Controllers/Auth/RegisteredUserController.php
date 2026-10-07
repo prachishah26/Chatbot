@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Chat\ConversationStore;
+use App\Chat\Conversations\GuestConversationService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
@@ -14,7 +14,7 @@ use Illuminate\View\View;
 
 final class RegisteredUserController extends Controller
 {
-    public function __construct(private readonly ConversationStore $store) {}
+    public function __construct(private readonly GuestConversationService $guestConversations) {}
 
     public function create(): View
     {
@@ -29,7 +29,7 @@ final class RegisteredUserController extends Controller
         Auth::login($user);
 
         $request->session()->regenerate();
-        $this->store->claimGuestThreads($request->session(), $user);
+        $this->guestConversations->claim($request->session(), $user);
 
         return redirect()->route('chat.index');
     }

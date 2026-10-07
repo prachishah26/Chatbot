@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Chat\Contracts\ChatProvider;
+use App\Chat\Data\ChatTurn;
+use App\Chat\Data\Role;
 use App\Chat\Exceptions\ChatProviderException;
-use App\Chat\Support\ChatTurn;
-use App\Chat\Support\Role;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,7 +89,7 @@ final class ChatTest extends TestCase
     {
         $this->fakeProvider('Hello there!');
 
-        $response = $this->postJson(route('chat.store'), ['message' => '  Hi  ']);
+        $response = $this->postJson(route('chat.messages.store'), ['message' => '  Hi  ']);
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -110,11 +110,11 @@ final class ChatTest extends TestCase
     {
         $this->fakeProvider('hi');
 
-        $this->postJson(route('chat.store'), ['message' => 'What is RAG?'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'What is RAG?'])
             ->assertOk()
             ->assertJsonPath('data.conversation.title', 'What is RAG?');
 
-        $this->postJson(route('chat.store'), ['message' => 'And its components?'])->assertOk();
+        $this->postJson(route('chat.messages.store'), ['message' => 'And its components?'])->assertOk();
 
         $this->assertSame(
             'What is RAG?',
@@ -134,9 +134,9 @@ final class ChatTest extends TestCase
             }
         });
 
-        $this->postJson(route('chat.store'), ['message' => 'first'])->assertOk();
+        $this->postJson(route('chat.messages.store'), ['message' => 'first'])->assertOk();
 
-        $this->postJson(route('chat.store'), ['message' => 'second'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'second'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', '2 prior turns');
     }
@@ -152,11 +152,11 @@ final class ChatTest extends TestCase
             }
         });
 
-        $this->postJson(route('chat.store'), ['message' => 'first'])->assertOk();
+        $this->postJson(route('chat.messages.store'), ['message' => 'first'])->assertOk();
 
         $this->post(route('chat.conversations.store'))->assertRedirect(route('chat.index'));
 
-        $this->postJson(route('chat.store'), ['message' => 'fresh start'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'fresh start'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', '0 prior turns');
 
@@ -178,9 +178,9 @@ final class ChatTest extends TestCase
     public function it_lists_the_visitors_threads_in_the_sidebar(): void
     {
         $this->fakeProvider('hi');
-        $this->postJson(route('chat.store'), ['message' => 'First thread'])->assertOk();
+        $this->postJson(route('chat.messages.store'), ['message' => 'First thread'])->assertOk();
         $this->post(route('chat.conversations.store'));
-        $this->postJson(route('chat.store'), ['message' => 'Second thread'])->assertOk();
+        $this->postJson(route('chat.messages.store'), ['message' => 'Second thread'])->assertOk();
 
         $this->get(route('chat.index'))
             ->assertOk()
@@ -237,7 +237,7 @@ final class ChatTest extends TestCase
     #[Test]
     public function it_rejects_an_empty_message(): void
     {
-        $this->postJson(route('chat.store'), ['message' => '   '])
+        $this->postJson(route('chat.messages.store'), ['message' => '   '])
             ->assertStatus(422)
             ->assertJsonValidationErrors('message');
 
@@ -249,7 +249,7 @@ final class ChatTest extends TestCase
     {
         config(['chatbot.max_message_length' => 10]);
 
-        $this->postJson(route('chat.store'), ['message' => str_repeat('a', 11)])
+        $this->postJson(route('chat.messages.store'), ['message' => str_repeat('a', 11)])
             ->assertStatus(422)
             ->assertJsonValidationErrors('message');
     }
@@ -265,7 +265,7 @@ final class ChatTest extends TestCase
             }
         });
 
-        $response = $this->postJson(route('chat.store'), ['message' => 'Hi']);
+        $response = $this->postJson(route('chat.messages.store'), ['message' => 'Hi']);
 
         $response->assertStatus(503)
             ->assertJsonPath('success', false)
@@ -324,7 +324,7 @@ final class ChatTest extends TestCase
         $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.5-flash-lite'])
             ->assertRedirect();
 
-        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', 'answered by gemini/gemini-3.5-flash-lite');
     }
@@ -335,7 +335,7 @@ final class ChatTest extends TestCase
         $this->configureProviders();
         $this->echoChosenModel();
 
-        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', 'answered by ollama/llama3.2');
     }
@@ -354,7 +354,7 @@ final class ChatTest extends TestCase
 
         $this->post(route('chat.model.store'), ['model' => 'gemini/gemini-3.5-flash-lite']);
 
-        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', 'from gemini');
 
@@ -374,7 +374,7 @@ final class ChatTest extends TestCase
 
         $this->post(route('chat.model.store'), ['model' => 'ollama/qwen3:8b']);
 
-        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])
             ->assertOk()
             ->assertJsonPath('data.assistant.content', 'from ollama');
 
@@ -400,10 +400,10 @@ final class ChatTest extends TestCase
         $this->fakeProvider('hi');
 
         foreach (range(1, 20) as $ignored) {
-            $this->postJson(route('chat.store'), ['message' => 'Hi'])->assertOk();
+            $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])->assertOk();
         }
 
-        $this->postJson(route('chat.store'), ['message' => 'Hi'])
+        $this->postJson(route('chat.messages.store'), ['message' => 'Hi'])
             ->assertStatus(429)
             ->assertJsonPath('success', false);
     }
@@ -416,7 +416,7 @@ final class ChatTest extends TestCase
             ->assertSee('name="csrf-token"', escape: false);
 
         // The web group supplies session state and CSRF verification.
-        $this->assertContains('web', app('router')->getRoutes()->getByName('chat.store')->gatherMiddleware());
+        $this->assertContains('web', app('router')->getRoutes()->getByName('chat.messages.store')->gatherMiddleware());
     }
 
     protected function tearDown(): void
